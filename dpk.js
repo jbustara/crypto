@@ -1,31 +1,28 @@
 const crypto = require("crypto");
+const {TRIVIAL_PARTITION_KEY, MAX_PARTITION_KEY_LENGTH} = require('./constants');
 
 exports.deterministicPartitionKey = (event) => {
-  const TRIVIAL_PARTITION_KEY = "0";
-  const MAX_PARTITION_KEY_LENGTH = 256;
   let candidate;
-  
-  if (event) {
-    if (event.partitionKey) {
-      candidate = event.partitionKey;
+  //Not event parameter --> return TRIVIAL_PARTITION_KEY
+  if(!event) {
+    return TRIVIAL_PARTITION_KEY;
+  }
 
-    } else {
+  //Checking parameter partitionKey to return it, 
+  if (event.partitionKey) {
+      candidate = typeof event.partitionKey !== 'string' ?
+                  JSON.stringify(event.partitionKey):
+                  event.partitionKey;
+      //if length greater tahn MAX PART then hash partitionKey
+      if (candidate.length > MAX_PARTITION_KEY_LENGTH) {
+        candidate = crypto.createHash("sha3-512").update(candidate).digest("hex");
+      }
+  } else {
+      //returning hash of the event
       const data = JSON.stringify(event);
       candidate = crypto.createHash("sha3-512").update(data).digest("hex");
     }
-  }
 
-  if (candidate) {
-    if (typeof candidate !== "string") {
-      candidate = JSON.stringify(candidate);
-    }
-  } else {
-    candidate = TRIVIAL_PARTITION_KEY;
-  }
-  
-  if (candidate.length > MAX_PARTITION_KEY_LENGTH) {
-    candidate = crypto.createHash("sha3-512").update(candidate).digest("hex");
-  }
   return candidate;
 };
 
